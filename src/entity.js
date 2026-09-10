@@ -226,6 +226,7 @@ export class Entity {
   // ---------- senses ----------
   canSeePlayer(playerPos, playerState) {
     const d = this.distanceTo(playerPos);
+    if (d < 2.3) return true;
     let range = 13;
     if (playerState.flashlight) range += 9;
     if (playerState.sprinting) range += 5;
@@ -558,6 +559,24 @@ export class Entity {
         }
       }
     }
+
+    // stuck escape: never grind forever against a doorway or prop
+    if (!this._lastPos) this._lastPos = new THREE.Vector3(this.pos.x, 0, this.pos.z);
+    const moving = (this.state === 'hunt' || this.state === 'investigate' || this.state === 'search') && !this._arrived() && this.attackTimer <= 0;
+    const moved = Math.hypot(this.pos.x - this._lastPos.x, this.pos.z - this._lastPos.z);
+    if (moving && moved < 0.02) {
+      this._stuckT = (this._stuckT || 0) + dt;
+      if (this._stuckT > 1.2) {
+        this._stuckT = 0;
+        const i = Math.round(this.pos.x / 14 + 2);
+        const j = Math.round(this.pos.z / 14 + 2);
+        this.setPosition((i - 2) * 14, (j - 2) * 14);
+        this._repath(this.state === 'hunt' ? this.lastSeen : (this.target || this.lastSeen));
+      }
+    } else {
+      this._stuckT = 0;
+    }
+    this._lastPos.set(this.pos.x, 0, this.pos.z);
     if (player.hidden && distToPlayer > 0.5) {
       // lurking near hiding spots
       if (this.state === 'hunt' || this.state === 'search') {

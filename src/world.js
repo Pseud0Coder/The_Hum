@@ -877,6 +877,7 @@ export class World {
       const arr = this.colliders.get(k);
       if (!arr) continue;
       for (const c of arr) {
+        if (c.tag !== 'wall' && c.tag !== 'elevator') continue;
         if (segAABB(ax, az, bx, bz, c)) return true;
       }
     }
