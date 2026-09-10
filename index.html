@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="THE HUM — a first-person survival horror game that hunts through your real microphone. Headphones recommended.">
+<meta property="og:title" content="THE HUM">
+<meta property="og:description" content="It hears you. A browser horror game that hunts through your real microphone.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050506'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23e8b04b' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%23ff3b30'/%3E%3C/svg%3E">
+<title>THE HUM</title>
+<style>
+  :root{
+    --amber:#e8b04b;
+    --amber-dim:#8a6a2e;
+    --green:#6fe38f;
+    --red:#ff3b30;
+    --bone:#d8d2c4;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;color:var(--bone);
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;cursor:default;user-select:none;-webkit-user-select:none}
+  #scene{position:fixed;inset:0;display:block}
+  #crt{position:fixed;inset:0;pointer-events:none;z-index:40;
+    background:
+      repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,rgba(0,0,0,0) 1px 3px),
+      radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%);
+    mix-blend-mode:multiply;opacity:.85}
+  #flicker{position:fixed;inset:0;pointer-events:none;z-index:41;background:#000;opacity:0;animation:flick 7s infinite steps(1)}
+  @keyframes flick{0%,96.4%,96.9%,100%{opacity:0}96.5%{opacity:.22}96.7%{opacity:.05}}
+  .screen{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 45%, #0b0b0d 0%, #050506 65%, #000 100%);text-align:center;padding:4vh 4vw}
+  .screen.on{display:flex}
+  .hidden{display:none!important}
+
+  .glitch{position:relative;font-size:clamp(2.2rem,7.2vw,5.4rem);letter-spacing:.34em;font-weight:700;color:var(--bone);
+    text-shadow:0 0 18px rgba(232,176,75,.25)}
+  .glitch::before,.glitch::after{content:attr(data-t);position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  .glitch::before{color:var(--red);transform:translate(-.05em,.02em);clip-path:inset(18% 0 52% 0);opacity:.75;animation:g1 3.1s infinite steps(1)}
+  .glitch::after{color:#4bd6ff;transform:translate(.05em,-.02em);clip-path:inset(58% 0 14% 0);opacity:.6;animation:g2 2.7s infinite steps(1)}
+  @keyframes g1{0%,92%{clip-path:inset(18% 0 52% 0)}93%{clip-path:inset(66% 0 8% 0);transform:translate(-.12em,.02em)}95%{clip-path:inset(4% 0 84% 0);transform:translate(.08em,-.04em)}97%,100%{clip-path:inset(18% 0 52% 0)}}
+  @keyframes g2{0%,88%{clip-path:inset(58% 0 14% 0)}90%{clip-path:inset(10% 0 74% 0);transform:translate(.14em,-.03em)}92%{clip-path:inset(74% 0 4% 0);transform:translate(-.06em,.05em)}94%,100%{clip-path:inset(58% 0 14% 0)}}
+
+  .sub{color:var(--amber);letter-spacing:.38em;font-size:clamp(.78rem,1.7vw,1.05rem);margin-top:1.4em;text-transform:uppercase;text-shadow:0 0 16px rgba(232,176,75,.45)}
+  .tiny{font-size:.8rem;color:#8f897c;letter-spacing:.09em;line-height:2}
+  .menu{margin-top:5vh;display:flex;flex-direction:column;gap:1.15rem;align-items:center}
+  .btn{background:none;border:1px solid var(--amber-dim);color:#ffc766;padding:.8em 2.9em;font:inherit;
+    font-size:1rem;letter-spacing:.24em;text-transform:uppercase;cursor:pointer;transition:all .13s;position:relative;text-shadow:0 0 12px rgba(232,176,75,.35)}
+  .btn:hover{background:rgba(232,176,75,.12);border-color:var(--amber);color:#ffe3a3;box-shadow:0 0 26px rgba(232,176,75,.22)}
+  .btn:disabled{opacity:.3;cursor:not-allowed;box-shadow:none}
+  .btn.ghost{border-color:#3d3a34;color:#a09a8c}
+  .btn.ghost:hover{border-color:#6f6a60;color:#e4ded0;background:rgba(255,255,255,.05);box-shadow:none}
+
+  .panel{border:1px solid #2c2a24;background:rgba(8,8,9,.78);padding:2.4rem 2.6rem;max-width:740px;width:min(94vw,740px);backdrop-filter:blur(3px)}
+  .panel h2{font-size:1.02rem;letter-spacing:.3em;color:var(--amber);font-weight:400;margin-bottom:1.6rem;text-transform:uppercase}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin:.8rem 0;font-size:.94rem;color:#d0c9b9}
+  .row label{letter-spacing:.08em}
+  .row input[type=range]{appearance:none;width:210px;height:3px;background:#4a453c;outline:none;border-radius:2px}
+  .row input[type=range]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;background:var(--amber);cursor:pointer;border-radius:50%;box-shadow:0 0 10px rgba(232,176,75,.5)}
+  .row .val{width:3.4em;text-align:right;color:#ffd166;font-variant-numeric:tabular-nums}
+  .tog{font:inherit;font-size:.84rem;letter-spacing:.12em;background:none;border:1px solid #4a453c;color:#a09a8c;padding:.4em 1em;cursor:pointer}
+  .tog.on{border-color:var(--amber);color:#ffd166;box-shadow:0 0 12px rgba(232,176,75,.2)}
+
+  /* ---- HUD ---- */
+  #hud{position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .5s}
+  #hud.on{opacity:1}
+  .hud-tl{position:absolute;left:16px;top:16px;font-size:.92rem;letter-spacing:.06em;color:#b7b0a1;line-height:2;
+    background:linear-gradient(90deg,rgba(0,0,0,.66),rgba(0,0,0,0));padding:10px 26px 10px 14px;border-left:2px solid rgba(232,176,75,.6)}
+  .hud-tr{position:absolute;right:16px;top:16px;text-align:right;font-size:.92rem;letter-spacing:.06em;color:#b7b0a1;line-height:2;
+    background:linear-gradient(270deg,rgba(0,0,0,.66),rgba(0,0,0,0));padding:10px 14px 10px 26px;border-right:2px solid rgba(196,107,255,.6)}
+  .hud-bl{position:absolute;left:16px;bottom:18px;font-size:.92rem;letter-spacing:.06em;color:#c6bfae;
+    background:rgba(0,0,0,.55);padding:12px 16px 14px;border-left:2px solid rgba(111,227,143,.65)}
+  .hud-sub{color:#79bcd8;font-size:.82rem;letter-spacing:.05em}
+  .hud-sub-r{color:#c3a6ff;font-size:.82rem;letter-spacing:.05em}
+  #objective{color:#ffc766;font-size:1.02rem;letter-spacing:.05em;text-shadow:0 0 14px rgba(232,176,75,.45)}
+  .bar{width:230px;height:5px;background:rgba(255,255,255,.12);margin-top:6px;position:relative;overflow:hidden;border-radius:3px}
+  .bar i{position:absolute;inset:0;transform-origin:left;background:var(--green);transform:scaleX(1);border-radius:3px}
+  .bar.bat i{background:#7fd1ff}
+  .bar.san i{background:#a78bff}
+  #frag-count{color:#9dffc0;font-size:1rem;text-shadow:0 0 12px rgba(111,227,143,.35)}
+  #corr-pct{color:#d9a6ff}
+
+  #noise{position:absolute;left:16px;bottom:128px;width:266px;background:rgba(0,0,0,.55);padding:10px 14px 8px;border-left:2px solid rgba(232,176,75,.6)}
+  #noise .nlabel{font-size:.84rem;letter-spacing:.14em;color:#a09a8c;margin-bottom:4px;display:flex;justify-content:space-between}
+  #noise .nlabel b{font-weight:400;color:var(--green)}
+  #wave{display:block;width:266px;height:34px;opacity:.95}
+
+  #reticle{position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border:1.5px solid rgba(216,210,196,.6);border-radius:50%;transition:all .12s}
+  #reticle.hot{border-color:#ffc766;box-shadow:0 0 14px rgba(232,176,75,.8);transform:scale(1.5)}
+  #prompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:1.02rem;letter-spacing:.14em;color:#efe8d8;
+    background:rgba(0,0,0,.78);border:1px solid #5a5344;padding:.6em 1.4em;opacity:0;transition:opacity .15s;white-space:nowrap;
+    box-shadow:0 0 22px rgba(0,0,0,.7)}
+  #prompt.on{opacity:1}
+  #prompt b{color:#ffd166;font-weight:400;text-shadow:0 0 12px rgba(232,176,75,.6)}
+
+  #subs{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);max-width:80vw;font-size:1.18rem;letter-spacing:.03em;
+    color:#f0e9d9;text-shadow:0 2px 10px #000,0 0 30px rgba(0,0,0,.9);line-height:1.75;text-align:center;opacity:0;transition:opacity .3s}
+  #subs.on{opacity:1}
+  #subs .who{color:#ff6a5a;letter-spacing:.26em;font-size:.8rem;display:block;margin-bottom:.4em;text-shadow:0 0 14px rgba(255,59,48,.5)}
+
+  #vignette{position:fixed;inset:0;z-index:21;pointer-events:none;opacity:0;
+    background:radial-gradient(ellipse at center,rgba(0,0,0,0) 30%,rgba(40,0,0,.85) 100%)}
+  #damage{position:fixed;inset:0;z-index:22;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 35%,rgba(140,0,0,.7) 100%)}
+  #hidefx{position:fixed;inset:0;z-index:23;pointer-events:none;opacity:0;background:#000;transition:opacity .25s}
+  #breath{position:fixed;inset:0;z-index:24;pointer-events:none;opacity:0;
+    background:radial-gradient(ellipse at center,rgba(0,0,0,0) 20%,rgba(0,0,0,.92) 78%)}
+  #blackout{position:fixed;inset:0;z-index:50;background:#000;pointer-events:none;opacity:0;transition:opacity 1.4s}
+
+  #crawl{max-width:700px;text-align:left;font-size:.98rem;line-height:2.15;color:#c2bbab;letter-spacing:.05em}
+  #crawl p{margin-bottom:1.6em;opacity:0;transform:translateY(6px);transition:all .9s}
+  #crawl p.on{opacity:1;transform:none}
+  #crawl .doc{color:var(--amber);font-size:.8rem;letter-spacing:.34em;margin-bottom:2.6em;text-transform:uppercase;opacity:1;transform:none}
+  #crawl .red{color:#ff7a6a;text-shadow:0 0 14px rgba(255,59,48,.35)}
+
+  .credit{position:fixed;bottom:14px;left:0;right:0;text-align:center;font-size:.7rem;letter-spacing:.22em;color:#57534b;z-index:31;pointer-events:none}
+  #mic-status{font-size:.88rem;letter-spacing:.12em;margin-top:1.2em;color:#a09a8c;min-height:1.2em}
+  #mic-status b{font-weight:400}
+  .ok{color:var(--green)!important}.bad{color:var(--red)!important}.warn{color:var(--amber)!important}
+  .meter{width:min(76vw,500px);height:64px;margin:1.8rem auto .4rem;display:block}
+  .keyguide{display:grid;grid-template-columns:auto auto;gap:.55rem 1.6rem;font-size:.92rem;color:#a09a8c;text-align:left;margin:1.6rem auto 0;width:max-content}
+  .keyguide b{color:#ffd166;font-weight:400}
+  .stat{display:flex;justify-content:space-between;border-bottom:1px dotted #33302a;padding:.55em 0;font-size:.96rem;color:#c2bbab}
+  .stat span:last-child{color:#ffd166}
+  #death-cause{color:#ff6a5a;letter-spacing:.22em;font-size:.96rem;margin-top:1.4em;min-height:1em;text-shadow:0 0 16px rgba(255,59,48,.4)}
+  #taunt{color:#ded7c7;font-style:italic;font-size:1.04rem;line-height:1.9;margin-top:1.2em;min-height:2.5em;letter-spacing:.02em}
+  .ending-title{font-size:clamp(1.8rem,5vw,3.2rem);letter-spacing:.26em;color:var(--bone)}
+  .red-t{color:#ff5a4a;text-shadow:0 0 28px rgba(255,59,48,.55)}
+  .green-t{color:#6fe38f;text-shadow:0 0 28px rgba(111,227,143,.5)}
+  #loadbar{width:min(70vw,420px);height:3px;background:#24221e;margin-top:2.4rem;position:relative;overflow:hidden;border-radius:2px}
+  #loadbar i{position:absolute;inset:0;background:var(--amber);transform:scaleX(0);transform-origin:left;transition:transform .25s}
+  #loadmsg{font-size:.78rem;letter-spacing:.26em;color:#8f897c;margin-top:.9rem;text-transform:uppercase}
+  .blink{animation:bl 1.1s steps(1) infinite}@keyframes bl{50%{opacity:0}}
+  .flashable{animation:fl .12s steps(2) infinite}@keyframes fl{50%{opacity:.3}}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="crt"></div><div id="flicker"></div>
+<div id="vignette"></div><div id="damage"></div><div id="hidefx"></div><div id="breath"></div>
+
+<div id="hud">
+  <div class="hud-tl">
+    <div id="objective">OBJECTIVE: LOCATE RESONANCE CORES [0/4]</div>
+    <div class="hud-sub">FACILITY VOX-9 &middot; SUBLEVEL 4 &middot; <span id="clock">--:--:--</span></div>
+  </div>
+  <div class="hud-tr">
+    <div id="frag-count">CORES 0/4</div>
+    <div class="hud-sub-r">CORRUPTION <span id="corr-pct">0%</span></div>
+    <div class="bar san"><i id="corr-bar"></i></div>
+  </div>
+  <div id="reticle"></div>
+  <div id="prompt"></div>
+  <div id="subs"></div>
+  <div id="noise">
+    <div class="nlabel"><span>ROOM AUDIO</span><b id="noise-state">SILENT</b></div>
+    <canvas id="wave" width="266" height="34"></canvas>
+  </div>
+  <div class="hud-bl">
+    STAMINA <span id="sta-pct">100</span>%
+    <div class="bar"><i id="sta-bar"></i></div>
+    <div style="margin-top:9px">LIGHT <span id="bat-pct">100</span>%
+    <div class="bar bat"><i id="bat-bar"></i></div></div>
+  </div>
+</div>
+
+<div class="screen on" id="scr-title">
+  <div class="glitch" data-t="THE HUM">THE HUM</div>
+  <div class="sub">it hears you</div>
+  <div class="menu">
+    <button class="btn" id="btn-start">Enter Facility</button>
+    <button class="btn ghost" id="btn-options">Options</button>
+    <button class="btn ghost" id="btn-brief">Briefing</button>
+  </div>
+  <div class="tiny" style="margin-top:5vh">HEADPHONES REQUIRED &middot; MICROPHONE REQUIRED &middot; THIS GAME LISTENS TO YOUR ROOM</div>
+</div>
+
+<div class="screen" id="scr-cal">
+  <div class="panel" style="text-align:center">
+    <h2>Audio Sensor Calibration</h2>
+    <p style="font-size:.74rem;line-height:2;color:#a9a294">
+      VOX-9's containment failed because it heard everything.<br>
+      This simulation uses your microphone. <span class="warn">Real noise in your room will be heard by the entity.</span><br>
+      You will hear it humming near the machines. <span class="red">That is not the machines.</span><br>
+      Keep your room quiet. Speak softly. Keyboard keys are footsteps to it.
+    </p>
+    <canvas class="meter" id="cal-wave" width="500" height="64"></canvas>
+    <div id="mic-status">REQUESTING MICROPHONE&hellip;</div>
+    <div style="margin-top:2rem;display:none;gap:1rem;justify-content:center" id="cal-buttons">
+      <button class="btn" id="btn-cal-done" disabled>Acknowledge</button>
+      <button class="btn ghost" id="btn-cal-skip">Run Deaf</button>
+    </div>
+    <div class="tiny" id="cal-hint" style="margin-top:1.4rem">WAITING FOR MICROPHONE DECISION&hellip;<br><span style="color:#4a463f">IF ACCESS IS DENIED, THE GAME RUNS DEAF: IT WILL STILL HUNT YOUR FOOTSTEPS.</span></div>
+  </div>
+</div>
+
+<div class="screen" id="scr-brief">
+  <div id="crawl">
+    <p class="doc">ARCHIVE // VOX-9 // INCIDENT 04</p>
+    <p>In 1987 the Vox-9 research station was built 400 metres below the surface to study a phenomenon that could not be photographed: <span class="red">sound that behaved like matter.</span></p>
+    <p>It learned. It echoed back things the crew had never said. It began answering questions before they were asked. The crew gave it a name, because the silence needed one. They called it <span class="red">the Hum.</span></p>
+    <p>Containment protocol: absolute silence. The staff were ordered to stop breathing. Most of them obeyed.</p>
+    <p>You are the retrieval technician. Four resonance cores hold the facility together. Recover them. Return to the elevator. Make no sound.</p>
+    <p class="red">DO NOT ANSWER THE HUM.</p>
+  </div>
+  <div style="margin-top:4vh"><button class="btn" id="btn-brief-go">Proceed to Sublevel 4</button></div>
+</div>
+
+<div class="screen" id="scr-pause">
+  <div class="panel">
+    <h2>Paused &middot; it is still there</h2>
+    <div class="keyguide">
+      <b>WASD</b><span>move</span><b>MOUSE</b><span>look</span>
+      <b>SHIFT</b><span>sprint</span><b>CTRL</b><span>crouch</span>
+      <b>F</b><span>flashlight</span><b>E</b><span>interact / hide</span>
+      <b>Q</b><span>throw noise-maker</span><b>SPACE</b><span>hold breath</span>
+      <b>ESC</b><span>pause</span>
+    </div>
+    <div class="menu" style="margin-top:2.4rem">
+      <button class="btn" id="btn-resume">Resume</button>
+      <button class="btn ghost" id="btn-opt2">Options</button>
+      <button class="btn ghost" id="btn-abandon">Abandon Run</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="scr-options">
+  <div class="panel">
+    <h2>Options</h2>
+    <div class="row"><label>Mouse sensitivity</label><input type="range" id="opt-sens" min="0.4" max="3" step="0.1" value="1"><span class="val" id="val-sens">1.0</span></div>
+    <div class="row"><label>Pixelation (PS1)</label><input type="range" id="opt-pixel" min="1" max="6" step="1" value="3"><span class="val" id="val-pixel">3</span></div>
+    <div class="row"><label>Master volume (everything)</label><input type="range" id="opt-vol" min="0" max="1" step="0.05" value="0.45"><span class="val" id="val-vol">0.45</span></div>
+    <div class="row"><label>Ambience / hum (drone, server rooms)</label><input type="range" id="opt-amb" min="0" max="1" step="0.01" value="0.2"><span class="val" id="val-amb">0.20</span></div>
+    <div class="row"><label>Entity voice volume</label><input type="range" id="opt-vvol" min="0" max="1" step="0.05" value="0.9"><span class="val" id="val-vvol">0.90</span></div>
+    <div class="row"><label>Microphone sensitivity</label><input type="range" id="opt-mic" min="0.4" max="3" step="0.1" value="1"><span class="val" id="val-mic">1.0</span></div>
+    <div class="row"><label>Subtitles / entity speech</label><button class="tog on" id="opt-subs">ON</button></div>
+    <div class="row"><label>Voice synthesis (taunts)</label><button class="tog on" id="opt-voice">ON</button></div>
+    <div class="row"><label>Invert Y</label><button class="tog" id="opt-inv">OFF</button></div>
+    <div class="row"><label>Facility memory (deaths, routes)</label><button class="tog" id="opt-wipe">WIPE</button></div>
+    <div class="menu" style="margin-top:2rem"><button class="btn" id="btn-opt-back">Back</button></div>
+  </div>
+</div>
+
+<div class="screen" id="scr-death">
+  <div class="panel" style="text-align:center">
+    <div class="ending-title red-t" style="font-size:clamp(1.4rem,4vw,2.4rem)">SIGNAL LOST</div>
+    <div id="death-cause">CAUSE: UNKNOWN</div>
+    <div id="taunt"></div>
+    <div style="margin-top:2rem;text-align:left">
+      <div class="stat"><span>TIME SURVIVED</span><span id="d-time">00:00</span></div>
+      <div class="stat"><span>CORES RECOVERED</span><span id="d-frags">0 / 4</span></div>
+      <div class="stat"><span>DEATHS IN VOX-9</span><span id="d-deaths">1</span></div>
+      <div class="stat"><span>IT HAS LEARNED</span><span id="d-knowledge">0%</span></div>
+    </div>
+    <div class="tiny" id="d-learned" style="margin-top:1.2rem"></div>
+    <div class="menu" style="margin-top:2.6rem">
+      <button class="btn" id="btn-retry">Wake Again</button>
+      <button class="btn ghost" id="btn-death-opts">Options</button>
+    </div>
+    <div class="tiny" style="margin-top:1.4rem">THE FACILITY REMEMBERS YOUR ROUTE. YOUR PAST SELF WILL WALK IT AGAIN.</div>
+  </div>
+</div>
+
+<div class="screen" id="scr-hold">
+  <canvas class="meter" id="hold-wave" width="500" height="64"></canvas>
+  <div class="ending-title" style="font-size:clamp(1.2rem,3.4vw,2rem)">DO NOT MAKE A SOUND</div>
+  <div class="sub" id="hold-timer">8.0</div>
+  <div class="tiny" style="margin-top:2vh">IT IS STANDING BESIDE YOU. BREATHE SLOWLY.</div>
+</div>
+
+<div class="screen" id="scr-end">
+  <div class="panel" style="text-align:center">
+    <div class="ending-title" id="end-title">SIGNAL CONTAINED</div>
+    <div id="taunt-end" style="color:#a9a294;font-size:.78rem;line-height:2;margin-top:1.4rem"></div>
+    <div style="margin-top:2rem;text-align:left">
+      <div class="stat"><span>ESCAPE TIME</span><span id="e-time">00:00</span></div>
+      <div class="stat"><span>DEATHS BEFORE ESCAPE</span><span id="e-deaths">0</span></div>
+      <div class="stat"><span>NOISE EVENTS CAUSED BY YOUR ROOM</span><span id="e-mic">0</span></div>
+      <div class="stat"><span>FINAL CORRUPTION</span><span id="e-corr">0%</span></div>
+    </div>
+    <div class="menu" style="margin-top:2.6rem">
+      <button class="btn" id="btn-again">Enter Again</button>
+      <button class="btn ghost" id="btn-end-opts">Options</button>
+    </div>
+    <div class="tiny" style="margin-top:1.6rem" id="end-note"></div>
+  </div>
+</div>
+
+<div class="credit">A BROWSER HORROR BY BB &middot; YOUR MICROPHONE IS PART OF THE GAME</div>
+<div id="blackout"></div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
