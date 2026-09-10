@@ -10,7 +10,7 @@ export class UI {
       'btn-start', 'btn-options', 'btn-brief', 'btn-cal-done', 'btn-cal-skip', 'btn-brief-go',
       'btn-resume', 'btn-opt2', 'btn-abandon', 'btn-opt-back', 'btn-retry', 'btn-death-opts',
       'btn-again', 'btn-end-opts', 'hud', 'objective', 'clock', 'frag-count', 'corr-pct', 'corr-bar',
-      'reticle', 'prompt', 'subs', 'sta-pct', 'sta-bar', 'bat-pct', 'bat-bar', 'noise-state', 'wave',
+      'reticle', 'prompt', 'subs',       'sta-pct', 'sta-bar', 'bat-pct', 'bat-bar', 'noise-state', 'noise-pct', 'wave', 'stim-line', 'stim-secs',
       'cal-wave', 'mic-status', 'cal-buttons', 'cal-hint', 'vignette', 'damage', 'hidefx', 'breath', 'blackout', 'taunt', 'death-cause',
       'd-time', 'd-frags', 'd-deaths', 'd-knowledge', 'd-learned', 'hold-wave', 'hold-timer',
       'end-title', 'taunt-end', 'e-time', 'e-deaths', 'e-mic', 'e-corr', 'end-note',
@@ -112,9 +112,19 @@ export class UI {
   setHideFx(v) { this.el.hidefx.style.opacity = String(v); }
   setBreathFx(v) { this.el.breath.style.opacity = String(v); }
 
+  setStim(sec) {
+    const el = this.el['stim-line'];
+    if (!el) return;
+    const on = sec > 0;
+    el.classList.toggle('hidden', !on);
+    if (on) this.el['stim-secs'].textContent = Math.ceil(sec);
+  }
+
   setNoiseState(level, threshold, deaf) {
-    if (deaf) { this.el['noise-state'].textContent = 'DEAF'; this.el['noise-state'].className = 'warn'; return; }
     const ratio = level / Math.max(0.001, threshold);
+    const pctEl = this.el['noise-pct'];
+    if (pctEl) pctEl.textContent = deaf ? '—' : `${Math.min(999, Math.round(ratio * 100))}%`;
+    if (deaf) { this.el['noise-state'].textContent = 'DEAF'; this.el['noise-state'].className = 'warn'; return; }
     let state = 'SILENT';
     this.el['noise-state'].className = 'ok';
     if (ratio > 0.7) { state = 'AUDIBLE'; this.el['noise-state'].className = 'warn'; }
@@ -139,10 +149,13 @@ export class UI {
     ctx.setLineDash([]);
     const bw = w / 72;
     ctx.fillStyle = color;
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(0, h / 2 - 1, w, 2);
+    ctx.globalAlpha = 1;
     for (let i = 0; i < hist.length; i++) {
       const v = hist[i];
-      const bh = clamp(v / 1.2, 0.014, 1) * (h * 0.88);
-      ctx.globalAlpha = 0.35 + Math.min(0.65, v * 2.5);
+      const bh = clamp(v / 1.2, 0.05, 1) * (h * 0.88);
+      ctx.globalAlpha = 0.4 + Math.min(0.6, v * 2.5);
       ctx.fillRect(i * bw + 0.5, (h - bh) / 2, Math.max(1, bw - 1.5), bh);
     }
     ctx.globalAlpha = 1;

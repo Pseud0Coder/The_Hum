@@ -141,7 +141,7 @@ export class AudioEngine {
     const tensionOsc2 = ctx.createOscillator(); tensionOsc2.type = 'sine'; tensionOsc2.frequency.value = 2130;
     const tG = ctx.createGain(); tG.gain.value = 0;
     const trem = ctx.createOscillator(); trem.frequency.value = 7.3;
-    const tremG = ctx.createGain(); tremG.gain.value = 0.5;
+    const tremG = ctx.createGain(); tremG.gain.value = 0.003;
     trem.connect(tremG); tremG.connect(tG.gain);
     tensionOsc.connect(tG); tensionOsc2.connect(tG);
     tG.connect(this.ambient); tG.connect(this.reverbIn);
@@ -376,6 +376,26 @@ export class AudioEngine {
     });
   }
 
+  stim() {
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(720, t + 0.35);
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400;
+    const g = ctx.createGain();
+    o.connect(f); f.connect(g); g.connect(this.master); g.connect(this.reverbIn);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.07, t + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    o.start(t); o.stop(t + 0.55);
+    const n = ctx.createBufferSource(); n.buffer = this.noiseBuf;
+    const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 2200; nf.Q.value = 2;
+    const ng = ctx.createGain();
+    n.connect(nf); nf.connect(ng); ng.connect(this.master);
+    ng.gain.setValueAtTime(0.05, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    n.start(t); n.stop(t + 0.3);
+  }
+
   heartbeat(intensity = 1) {
     if (!this.ready) return;
     const ctx = this.ctx, t = ctx.currentTime;
@@ -517,7 +537,7 @@ export class AudioEngine {
 
     const tension = clamp(state.tension || 0, 0, 1);
     this.tension = tension;
-    this.tensionGain.gain.setTargetAtTime(tension * 0.012, this.ctx.currentTime, 0.4);
+    this.tensionGain.gain.setTargetAtTime(tension * 0.007, this.ctx.currentTime, 0.4);
     this.airFilter.frequency.setTargetAtTime(320 + tension * 900, this.ctx.currentTime, 0.8);
     this.droneFilter.frequency.setTargetAtTime(170 + tension * 320, this.ctx.currentTime, 0.6);
 

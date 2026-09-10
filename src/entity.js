@@ -291,6 +291,30 @@ export class Entity {
     this._repath(spot.pos);
   }
 
+  creepCloser(playerPos, dist) {
+    const world = this.world;
+    const pcell = world.worldToCell(playerPos.x, playerPos.z);
+    const options = [];
+    for (let i = 0; i < 5; i++) {
+      for (let j = 0; j < 5; j++) {
+        if (i === pcell.i && j === pcell.j) continue;
+        const c = { x: (i - 2) * 14, z: (j - 2) * 14 };
+        const d = Math.hypot(c.x - playerPos.x, c.z - playerPos.z);
+        if (d > dist * 0.5 && d < dist * 1.55) options.push([i, j]);
+      }
+    }
+    const pick = options.length ? options[Math.floor(Math.random() * options.length)] : [pcell.i, pcell.j];
+    const pt = world.randomPointInRoom(pick[0], pick[1]);
+    this.setPosition(pt.x, pt.z);
+    this._setMatGhost(false);
+    this.state = 'investigate';
+    this.stateTime = 0;
+    this.grace = 1.2;
+    this.lastNoise = { pos: new THREE.Vector3(playerPos.x, 0, playerPos.z), source: 'core', t: performance.now() };
+    this.lastSeen.copy(this.lastNoise.pos);
+    this._repath(this.lastNoise.pos);
+  }
+
   _enterSearch() {
     this.state = 'search';
     this.stateTime = 0;

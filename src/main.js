@@ -569,13 +569,24 @@ class Game {
             : `OBJECTIVE: RECOVER RESONANCE CORES [${this.frags}/4]`);
           this.audio.pickup();
           this.audio.fadeAmbient(0.5, 0.5);
-          if (this.frags === 1) this.ui.subtitle('THE HUM', 'That hum. I can hear it through you now.', 4200);
+          const creepDist = Math.max(9, 21 - this.frags * 3);
+          this.entity.creepCloser(player.position, creepDist);
+          this.audio.screech(0.45);
+          this.corruption = Math.min(100, this.corruption + 8);
+          this._damageFx = 0.3;
+          const lines = [
+            'It felt that. It is closer now.',
+            'The hum moved. Toward you.',
+            'It knows how many you carry.',
+            'Another one. It is coming to listen.',
+          ];
+          this.ui.subtitle('THE HUM', lines[(this.frags - 1) % lines.length], 3200);
           if (this.frags === 4) {
             this.taunts.speak('All four. The elevator will want silence from you.', { duration: 5000 });
-            this.audio.screech(0.5);
-            this.corruption = Math.min(100, this.corruption + 18);
+            this.corruption = Math.min(100, this.corruption + 10);
           }
         } else if (item.type === 'battery') player.addBattery();
+        else if (item.type === 'stim') player.addStim();
         else player.addBottle();
       }
     }
@@ -688,6 +699,7 @@ class Game {
 
     // hud
     this.ui.setBars(player.stamina, player.battery, this.corruption);
+    this.ui.setStim(player.stimTimer);
     this.state.recordTick(dt, player.position, player.flashlight);
     world.coresHeld = this.frags;
   }
@@ -763,6 +775,7 @@ class Game {
   _beginDeath(cause) {
     if (this.mode === 'dying' || this.mode === 'dead') return;
     this.mode = 'dying';
+    document.exitPointerLock?.();
     this._cause = cause;
     this.state.recordDeath(cause);
     this.player.setEnabled(false);

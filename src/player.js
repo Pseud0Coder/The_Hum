@@ -35,6 +35,7 @@ export class Player {
     this.breathTimer = rand(2, 4);
     this.throwables = [];
     this.lastGasp = 0;
+    this.stimTimer = 0;
     this.interactTarget = null;
     this.enabled = false;
     this.mouseSens = 1;
@@ -101,6 +102,7 @@ export class Player {
     this.yaw = yaw; this.pitch = 0;
     this.dead = false; this.hidden = false; this.hideSpot = null;
     this.stamina = 100; this.battery = 100; this.bottles = 4;
+    this.stimTimer = 0;
     this.flashlight = false;
   }
 
@@ -162,13 +164,14 @@ export class Player {
     this.sprinting = canSprint;
     let speed = this.crouching ? 1.55 : 3.1;
     if (this.sprinting) {
-      speed = 5.0;
-      this.stamina = Math.max(0, this.stamina - 22 * dt);
+      speed = this.stimTimer > 0 ? 6.4 : 5.0;
+      this.stamina = Math.max(0, this.stamina - (this.stimTimer > 0 ? 8 : 22) * dt);
       this.regenDelay = 1.0;
     } else {
       this.regenDelay = Math.max(0, (this.regenDelay || 0) - dt);
       if (this.regenDelay <= 0) this.stamina = Math.min(100, this.stamina + (this.holdBreath ? 4 : 11) * dt);
     }
+    if (this.stimTimer > 0) this.stimTimer = Math.max(0, this.stimTimer - dt);
     this.holdBreath = !!K.Space && !this.hidden;
     if (this.holdBreath) {
       this.stamina = Math.max(0, this.stamina - 5.5 * dt);
@@ -316,6 +319,12 @@ export class Player {
     this.battery = Math.min(100, this.battery + 34);
     if (this.battery > 0 && !this.flashlight) this.flashlight = true;
     this.audio.pickup();
+  }
+
+  addStim() {
+    this.stamina = 100;
+    this.stimTimer = 20;
+    this.audio.stim();
   }
 
   addBottle() {

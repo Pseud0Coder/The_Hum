@@ -180,15 +180,22 @@ export class World {
       const idx = Math.min(3, Math.max(0, Math.round((d - 2) / 1.4)));
       buckets[idx].push(k);
     }
+    const shuffle = (arr) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
     this.coreCells = [];
     for (let b = 3; b >= 0 && this.coreCells.length < 4; b--) {
-      this.rng.shuffle(buckets[b]);
+      shuffle(buckets[b]);
       for (const k of buckets[b]) {
         if (this.coreCells.length < 4 && !this.coreCells.includes(k)) this.coreCells.push(k);
       }
     }
     while (this.coreCells.length < 4) {
-      const k = candidates[this.rng.int(0, candidates.length - 1)];
+      const k = candidates[Math.floor(Math.random() * candidates.length)];
       if (!this.coreCells.includes(k)) this.coreCells.push(k);
     }
     this.coreCells.sort((a, b) => (this.depth[a] || 0) - (this.depth[b] || 0));
@@ -723,15 +730,21 @@ export class World {
     }
     const freeCells = [];
     for (let i = 0; i < GRID; i++) for (let j = 0; j < GRID; j++) freeCells.push([i, j]);
+    const randCell = () => freeCells[Math.floor(Math.random() * freeCells.length)];
     for (let k = 0; k < 7; k++) {
-      const [i, j] = r.pick(freeCells);
+      const [i, j] = randCell();
       const { x, z } = cellCenter(i, j);
       this._spawnItem('battery', x + rand(-4.5, 4.5), z + rand(-4.5, 4.5), 0.06);
     }
     for (let k = 0; k < 9; k++) {
-      const [i, j] = r.pick(freeCells);
+      const [i, j] = randCell();
       const { x, z } = cellCenter(i, j);
       this._spawnItem('bottle', x + rand(-4.5, 4.5), z + rand(-4.5, 4.5), 0.05);
+    }
+    for (let k = 0; k < 3; k++) {
+      const [i, j] = randCell();
+      const { x, z } = cellCenter(i, j);
+      this._spawnItem('stim', x + rand(-4.0, 4.0), z + rand(-4.0, 4.0), 0.14);
     }
     // signs in rooms
     for (let i = 0; i < GRID; i++) for (let j = 0; j < GRID; j++) {
@@ -761,6 +774,23 @@ export class World {
       tip.position.y = 0.14;
       mesh.add(tip);
       mesh.position.set(x, 0.12, z);
+    } else if (type === 'stim') {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.24, 8),
+        this.mat('stimBody', () => new THREE.MeshLambertMaterial({ color: 0xe4dfd0 })));
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.07, 8),
+        new THREE.MeshBasicMaterial({ color: 0xff4a5a }));
+      band.position.y = 0.03;
+      const plunger = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6),
+        this.mat('stimPlunger', () => new THREE.MeshLambertMaterial({ color: 0xb9b4a6 })));
+      plunger.position.y = 0.17;
+      const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.1, 6),
+        new THREE.MeshBasicMaterial({ color: 0xcfd6dd }));
+      needle.position.y = -0.16;
+      mesh = new THREE.Group();
+      mesh.add(body, band, plunger, needle);
+      mesh.position.set(x, 0.2, z);
+      mesh.rotation.z = Math.random() < 0.5 ? Math.PI / 2 : 0.1;
+      if (mesh.rotation.z > 1) mesh.position.y = 0.06;
     } else {
       const m = this.mat('bottle', () => new THREE.MeshLambertMaterial({ color: 0x3a5f4a, transparent: true, opacity: 0.85 }));
       mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.3, 8), m);
@@ -974,7 +1004,7 @@ export class World {
         const c = item.mesh.material.color;
         const p = 0.75 + Math.sin(t * 3 + item.phase) * 0.25;
         c.setRGB(0.3 + p * 0.2, 0.6 * p + 0.4, 0.5 + p * 0.3);
-      } else if (item.type === 'battery') {
+      } else if (item.type === 'battery' || item.type === 'stim') {
         item.mesh.rotation.y += dt * 0.8;
       }
     }

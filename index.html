@@ -151,7 +151,7 @@
   <div id="prompt"></div>
   <div id="subs"></div>
   <div id="noise">
-    <div class="nlabel"><span>ROOM AUDIO</span><b id="noise-state">SILENT</b></div>
+    <div class="nlabel"><span>ROOM AUDIO <span id="noise-pct" style="color:#79bcd8">0%</span></span><b id="noise-state">SILENT</b></div>
     <canvas id="wave" width="266" height="34"></canvas>
   </div>
   <div class="hud-bl">
@@ -159,6 +159,7 @@
     <div class="bar"><i id="sta-bar"></i></div>
     <div style="margin-top:9px">LIGHT <span id="bat-pct">100</span>%
     <div class="bar bat"><i id="bat-bar"></i></div></div>
+    <div id="stim-line" class="hidden" style="margin-top:10px;color:#7dffb0;text-shadow:0 0 12px rgba(125,255,176,.5)">STIM <span id="stim-secs">20</span>s &middot; SPRINT BOOST</div>
   </div>
 </div>
 
