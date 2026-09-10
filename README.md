@@ -9,6 +9,10 @@ breathing — is heard by the thing in the dark.
 
 ## Run it
 
+**Play online:** https://pseud0coder.github.io/The_Hum/
+
+Locally:
+
 ```bash
 python3 serve.py 8130
 # open http://localhost:8130
