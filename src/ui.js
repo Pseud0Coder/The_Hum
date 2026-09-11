@@ -123,7 +123,7 @@ export class UI {
   setNoiseState(level, threshold, deaf) {
     const ratio = level / Math.max(0.001, threshold);
     const pctEl = this.el['noise-pct'];
-    if (pctEl) pctEl.textContent = deaf ? '—' : `${Math.min(999, Math.round(ratio * 100))}%`;
+    if (pctEl) pctEl.textContent = deaf ? '--' : `${Math.min(999, Math.round(ratio * 100))}%`;
     if (deaf) { this.el['noise-state'].textContent = 'DEAF'; this.el['noise-state'].className = 'warn'; return; }
     let state = 'SILENT';
     this.el['noise-state'].className = 'ok';
