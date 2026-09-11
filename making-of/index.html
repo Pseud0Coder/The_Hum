@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Making THE HUM — An Agentic Build, Deconstructed</title>
+<meta name="description" content="How DeepSeek-V4.1-Flash's architecture shaped the making of THE HUM — a browser horror game built from a single prompt.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050506'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23e8b04b' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%23ff3b30'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050506;
+    --panel:rgba(255,255,255,.017);
+    --ink:#ece8dd;
+    --dim:#938d80;
+    --faint:#5c5850;
+    --line:rgba(255,255,255,.09);
+    --amber:#e8b04b;
+    --amber-soft:rgba(232,176,75,.14);
+    --green:#6fe38f;
+    --red:#ff5a4a;
+    --cyan:#7fd1ff;
+    --purple:#a78bff;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:
+      radial-gradient(ellipse 70% 40% at 50% -8%,rgba(232,176,75,.07) 0%,transparent 70%),
+      var(--bg);
+    color:var(--ink);
+    font-family:Inter,system-ui,sans-serif;
+    line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 28px}
+  .narrow{max-width:820px}
+
+  #progress{position:fixed;top:0;left:0;height:2px;background:var(--amber);width:0;z-index:60;box-shadow:0 0 12px rgba(232,176,75,.7)}
+
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.32em;color:var(--amber);text-transform:uppercase}
+  h1{font-size:clamp(2rem,5vw,3.6rem);font-weight:600;letter-spacing:-.025em;line-height:1.1;margin:1.3rem 0 1.4rem;max-width:22ch}
+  h1 em{font-style:normal;color:var(--amber)}
+  h2{font-size:clamp(1.35rem,2.6vw,1.9rem);font-weight:600;letter-spacing:-.015em;margin-bottom:1rem}
+  h3{font-size:1.05rem;font-weight:600;letter-spacing:-.01em}
+  .lede{color:var(--dim);font-size:1.08rem;max-width:70ch}
+  p{color:var(--dim)}
+  p b, p strong{color:var(--ink);font-weight:500}
+  .mono{font-family:var(--mono)}
+
+  header{padding:15vh 0 8vh;border-bottom:1px solid var(--line)}
+  .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:3rem;align-items:end}
+  .hero-img{width:100%;border:1px solid var(--line);border-radius:14px;display:block;filter:saturate(.95)}
+  .hero-caption{font-size:.74rem;color:var(--faint);font-family:var(--mono);letter-spacing:.08em;margin-top:.7rem}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:4rem}
+  .stat{background:#0a0a0c;padding:1.3rem 1.2rem}
+  .stat b{display:block;font-size:1.5rem;font-weight:600;color:var(--amber);letter-spacing:-.02em}
+  .stat span{font-family:var(--mono);font-size:.66rem;letter-spacing:.18em;color:var(--faint);text-transform:uppercase}
+
+  section{padding:10vh 0;border-bottom:1px solid var(--line)}
+  .sec-head{display:flex;align-items:baseline;gap:1.2rem;margin-bottom:3rem}
+  .sec-num{font-family:var(--mono);font-size:.72rem;letter-spacing:.24em;color:var(--faint)}
+  .sec-head h2{margin:0}
+
+  .quote{border-left:2px solid var(--amber);padding:1.2rem 0 1.2rem 1.6rem;margin:2.4rem 0;background:linear-gradient(90deg,var(--amber-soft),transparent 70%)}
+  .quote p{font-size:1.15rem;color:var(--ink);font-style:italic}
+  .quote span{display:block;margin-top:.7rem;font-family:var(--mono);font-size:.7rem;letter-spacing:.2em;color:var(--faint);text-transform:uppercase}
+
+  .grid{display:grid;gap:1.1rem;grid-template-columns:repeat(3,1fr)}
+  .card{border:1px solid var(--line);border-radius:13px;padding:1.5rem 1.4rem;background:var(--panel);transition:border-color .2s,transform .2s}
+  .card:hover{border-color:rgba(232,176,75,.3);transform:translateY(-2px)}
+  .card h3{margin-bottom:.5rem}
+  .card p{font-size:.92rem}
+  .card .tag{font-family:var(--mono);font-size:.64rem;letter-spacing:.2em;color:var(--faint);text-transform:uppercase;display:block;margin-bottom:1rem}
+
+  .phases{display:grid;gap:0;border-left:1px solid var(--line);margin-left:.5rem}
+  .phase{position:relative;padding:0 0 2.8rem 2.2rem}
+  .phase:last-child{padding-bottom:0}
+  .phase::before{content:'';position:absolute;left:-5px;top:.55em;width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 14px rgba(232,176,75,.7)}
+  .phase .ph-label{font-family:var(--mono);font-size:.68rem;letter-spacing:.24em;color:var(--amber);text-transform:uppercase}
+  .phase h3{margin:.4rem 0 .5rem}
+  .phase p{font-size:.95rem;max-width:75ch}
+
+  .incidents{display:grid;gap:1rem;grid-template-columns:repeat(2,1fr)}
+  .incident{border:1px solid var(--line);border-radius:13px;padding:1.3rem 1.4rem;background:var(--panel)}
+  .incident h3{font-size:.98rem;margin-bottom:.9rem}
+  .incident .row{display:grid;grid-template-columns:92px 1fr;gap:.8rem;padding:.45rem 0;border-top:1px solid rgba(255,255,255,.05);font-size:.86rem}
+  .incident .row:first-of-type{border-top:0}
+  .incident .k{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;padding-top:.25em}
+  .k.rep{color:var(--cyan)} .k.cause{color:var(--red)} .k.fix{color:var(--green)}
+  .incident .v{color:var(--dim)}
+  .incident .v code{font-family:var(--mono);font-size:.8rem;color:var(--ink);background:rgba(255,255,255,.05);padding:.1em .35em;border-radius:4px}
+
+  .arch-intro{border:1px solid rgba(232,176,75,.35);background:linear-gradient(180deg,rgba(232,176,75,.05),transparent);border-radius:14px;padding:1.8rem 1.8rem 1.6rem;margin-bottom:2.6rem}
+  .arch-intro p{font-size:.97rem}
+  .src-note{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;color:var(--faint);text-transform:uppercase;margin-top:1rem}
+
+  .chart{border:1px solid var(--line);border-radius:13px;padding:1.6rem 1.6rem 1.2rem;background:var(--panel);margin:2.4rem 0}
+  .chart h3{font-size:.95rem;margin-bottom:.3rem}
+  .chart .sub{font-size:.8rem;color:var(--faint);margin-bottom:1.4rem}
+  .bars{display:flex;flex-direction:column;gap:.9rem}
+  .bar-row{display:grid;grid-template-columns:150px 1fr;gap:1rem;align-items:center}
+  .bar-row .lbl{font-family:var(--mono);font-size:.72rem;color:var(--dim);letter-spacing:.06em}
+  .bar-track{position:relative;height:22px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden}
+  .bar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px}
+  .bar-fill.v1{width:100%;background:linear-gradient(90deg,#6a3a34,#ff5a4a)}
+  .bar-fill.v4{width:63.5%;background:linear-gradient(90deg,#4a4530,#e8b04b)}
+  .bar-fill.v41{width:52.8%;background:linear-gradient(90deg,#2f4a3a,#6fe38f)}
+  .bar-row .val{font-family:var(--mono);font-size:.72rem;color:var(--ink);position:absolute;right:10px;top:3px}
+  .chart .axis{font-family:var(--mono);font-size:.64rem;color:var(--faint);letter-spacing:.16em;text-transform:uppercase;margin-top:1rem}
+
+  .map{display:grid;gap:1.1rem}
+  .mapping{border:1px solid var(--line);border-radius:13px;background:var(--panel);padding:1.5rem 1.6rem;display:grid;grid-template-columns:.9fr 1.1fr;gap:1.8rem}
+  .mapping .arch h3{color:var(--amber);margin-bottom:.5rem}
+  .mapping .arch p{font-size:.86rem}
+  .mapping .arch .doc{font-family:var(--mono);font-size:.6rem;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;display:block;margin-top:.8rem}
+  .mapping .impact p{font-size:.93rem}
+  .mapping .impact .ev{margin-top:.8rem;padding-top:.8rem;border-top:1px dashed rgba(255,255,255,.1);font-size:.85rem;color:var(--dim)}
+  .mapping .impact .ev b{color:var(--green);font-weight:500;font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;display:block;margin-bottom:.3rem}
+
+  table{width:100%;border-collapse:collapse;margin-top:1.4rem;font-size:.88rem}
+  th,td{text-align:left;padding:.7rem .8rem;border-bottom:1px solid var(--line)}
+  th{font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;font-weight:400}
+  td{color:var(--dim)}
+  td.hi{color:var(--amber);font-family:var(--mono);font-size:.84rem}
+  tr:hover td{background:rgba(255,255,255,.015)}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:2.6rem}
+  .split h3{margin-bottom:.8rem}
+  .split ul{list-style:none}
+  .split li{padding:.6rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.92rem;color:var(--dim)}
+  .split li b{color:var(--ink);font-weight:500}
+  .callout{border-left:2px solid var(--green);padding:1rem 1.4rem;background:rgba(111,227,143,.05);border-radius:0 10px 10px 0;margin-top:2.2rem}
+  .callout p{color:var(--ink);font-size:1rem}
+
+  .sources{font-size:.85rem}
+  .sources li{margin:.5rem 0;color:var(--dim);list-style:none;padding-left:2.2rem;position:relative}
+  .sources li::before{content:'['attr(data-n)']';position:absolute;left:0;font-family:var(--mono);color:var(--amber);font-size:.75rem}
+  .sources a{color:var(--cyan);border-bottom:1px dotted rgba(127,209,255,.4)}
+  .sources a:hover{border-bottom-style:solid}
+
+  footer{padding:8vh 0 10vh}
+  .cta{display:flex;flex-wrap:wrap;gap:1rem 2.4rem;margin-top:2rem;font-family:var(--mono);font-size:.78rem;letter-spacing:.16em;text-transform:uppercase}
+  .cta a{color:var(--amber);border-bottom:1px solid transparent;padding-bottom:2px}
+  .cta a:hover{color:#ffd166;border-color:rgba(232,176,75,.5)}
+  .fine{font-size:.74rem;color:var(--faint);margin-top:3rem;font-family:var(--mono);letter-spacing:.06em}
+
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.on{opacity:1;transform:none}
+
+  @media(max-width:900px){
+    .hero-grid{grid-template-columns:1fr;align-items:start}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .grid{grid-template-columns:1fr 1fr}
+    .incidents{grid-template-columns:1fr}
+    .mapping{grid-template-columns:1fr;gap:1rem}
+    .split{grid-template-columns:1fr}
+    .bar-row{grid-template-columns:110px 1fr}
+  }
+  @media(max-width:620px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<header>
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Case study · The Hum × DeepSeek-V4.1-Flash</div>
+      <h1>One prompt. 4,869 lines. A horror game that <em>listens</em>.</h1>
+      <p class="lede">A single sentence asked for a browser survival-horror game "beyond imagination." What followed was a complete development cycle — architecture, implementation, playtesting, debugging, and public deployment — inside one agentic session. This is how it happened, and how the model's architecture shows up in the result.</p>
+      <div class="stats">
+        <div class="stat"><b>1</b><span>prompt</span></div>
+        <div class="stat"><b>12</b><span>modules</span></div>
+        <div class="stat"><b>4,869</b><span>lines of code</span></div>
+        <div class="stat"><b>0</b><span>asset files</span></div>
+      </div>
+    </div>
+    <div>
+      <img class="hero-img" src="../screenshots/the-hum.jpg" alt="THE HUM — a faceless entity in a dark corridor">
+      <div class="hero-caption">the-hum.jpg — captured from the build during QA</div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>The prompt</h2></div>
+    <div class="quote">
+      <p>"build me a 3d survival horror game that runs on browser. I dont need a generic game, I need something that is beyond imagination"</p>
+      <span>— the entire design brief</span>
+    </div>
+    <p class="narrow">No design document. No reference art. No engine. The interpretation of "beyond imagination" was left to the model, and the choice it made is the game's entire identity: <b>the monster hunts through your real microphone</b>. Your keyboard, your chair, your breathing — noise in the room you are physically sitting in — becomes the entity's hunting signal. Everything else follows from that one decision.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>What was actually built</h2></div>
+    <div class="grid">
+      <div class="card"><span class="tag">threat model</span><h3>Your room is the enemy</h3><p>Live microphone analysis calibrates the ambient floor of your room, then treats sound above it as a hunting signal. Real noise creates in-world noise events with distance-scaled radius. A "deaf" fallback exists if you decline the mic.</p></div>
+      <div class="card"><span class="tag">ai</span><h3>Corridor-aware hearing</h3><p>Sound propagates along the map graph, with walls adding a capped penalty, so doorways carry noise and sealed rooms muffle it. Sprint paths are extrapolated and intercepted. Hiding spots are remembered across sessions, and lockers you used before get checked first.</p></div>
+      <div class="card"><span class="tag">continuity</span><h3>Your past runs walk again</h3><p>Death routes are recorded and replayed as a translucent ghost of your previous run. Reach the end of the route and it materialises — solid, and now it knows your habits.</p></div>
+      <div class="card"><span class="tag">rendering</span><h3>PS1 pipeline on WebGL</h3><p>Low-resolution render target, vertex snapping, affine texture warping, Bayer dithering, chromatic aberration and film grain — applied through a custom post chain and shader injection into every lit material.</p></div>
+      <div class="card"><span class="tag">audio</span><h3>18 synthesized sound generators</h3><p>Drones, room hums, footsteps, heartbeats, whispers, screeches and the entity's speech cues — all built live on the Web Audio API. No audio files exist in the repository.</p></div>
+      <div class="card"><span class="tag">world</span><h3>Procedural facility, 10 texture generators</h3><p>Concrete, tile, metal, rust, hazard stripes, signs, posters, blood decals and more — drawn pixel by pixel on canvas at load. Core rooms re-randomise every run; the layout stays fixed so the entity's memory stays meaningful.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>The development process</h2></div>
+    <div class="phases">
+      <div class="phase">
+        <div class="ph-label">Phase 01</div>
+        <h3>System before spectacle</h3>
+        <p>Before a single corridor existed, the build was decomposed into twelve single-responsibility modules — world generation, entity AI, player controller, audio engine, post-processing, UI, persistence, taunts — with a vendored Three.js and <b>no build step</b>. That decision is why the game can be a GitHub Pages folder: plain ES modules, static hosting, nothing to compile.</p>
+      </div>
+      <div class="phase">
+        <div class="ph-label">Phase 02</div>
+        <h3>Build with the loop closed</h3>
+        <p>The agent did not write code blind. It started a local dev server, opened the game in a browser it could drive, evaluated JavaScript inside the running page, forced scenarios, read shader diagnostics and captured framebuffers. Verification happened continuously during construction — not as a phase at the end.</p>
+      </div>
+      <div class="phase">
+        <div class="ph-label">Phase 03</div>
+        <h3>Playtest notes as specification</h3>
+        <p>Once it was playable, the human became the director. Feedback arrived as plain sentences — "the entity can't see me at the door," "it's too easy," "make the text readable," "randomize the cores" — and each became a diagnosed root cause, a tested fix, and a new feature in the same pass. The six-commit history reads as feature bundles, not micro-churn.</p>
+      </div>
+      <div class="phase">
+        <div class="ph-label">Phase 04</div>
+        <h3>Ship, then keep iterating</h3>
+        <p>Deployed to GitHub Pages with automatic rebuilds on push. Post-release fixes were verified against the live URL — including a rebuild of the entity's senses, a panic mechanic tied to carrying cores, stimpacks, and a full typographic overhaul.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>The debug log is the real benchmark</h2></div>
+    <p class="narrow" style="margin-bottom:2.4rem">Benchmarks measure isolated tasks. A game accumulates coupled ones. These are real incidents from the build — the reported symptom, the actual root cause, and the fix. The pattern worth noticing: none were solved by guessing. Each required reading the system.</p>
+    <div class="incidents">
+      <div class="incident">
+        <h3>The world rendered black</h3>
+        <div class="row"><span class="k rep">reported</span><span class="v">Everything is invisible except unlit signs and lamp glows.</span></div>
+        <div class="row"><span class="k cause">root cause</span><span class="v">Shader injection used uniforms that were never declared in the vertex stage — every lit material failed to compile. A second, deeper pass found the real culprit: <code>vMapUv /= …</code> — WebGL2 forbids assigning to fragment varyings.</span></div>
+        <div class="row"><span class="k fix">fix</span><span class="v">Declared the missing uniforms, then replaced the write with a custom <code>map_fragment</code> sampling override that divides at read time.</span></div>
+      </div>
+      <div class="incident">
+        <h3>Every refresh showed a black screen</h3>
+        <div class="row"><span class="k rep">reported</span><span class="v">A fresh page load is permanently black; only navigation into a run clears it.</span></div>
+        <div class="row"><span class="k cause">root cause</span><span class="v">The full-screen fade element defaulted to <code>opacity: 1</code> at z-index 50 — above every menu — and nothing cleared it on load.</span></div>
+        <div class="row"><span class="k fix">fix</span><span class="v">Default to transparent and explicitly clear it at boot.</span></div>
+      </div>
+      <div class="incident">
+        <h3>Movement didn't match the camera</h3>
+        <div class="row"><span class="k rep">reported</span><span class="v">"The mouse control and WASD movement are not in sync."</span></div>
+        <div class="row"><span class="k cause">root cause</span><span class="v">The camera-relative basis had sign-flipped cross terms, making movement world-relative.</span></div>
+        <div class="row"><span class="k fix">fix</span><span class="v">Corrected the rotation matrix, then verified all four quadrants numerically in the live page.</span></div>
+      </div>
+      <div class="incident">
+        <h3>The E key did nothing</h3>
+        <div class="row"><span class="k rep">reported</span><span class="v">"Pressed E at the elevator with all four cores — nothing happens."</span></div>
+        <div class="row"><span class="k cause">root cause</span><span class="v">The player controller cleared the interact flag at the end of its own update, before the interaction logic read it. Hiding was silently broken too.</span></div>
+        <div class="row"><span class="k fix">fix</span><span class="v">Replaced the clear-on-update with an explicit <code>consumeInteract()</code>; verified both the elevator and locker paths.</span></div>
+      </div>
+      <div class="incident">
+        <h3>A constant drone under everything</h3>
+        <div class="row"><span class="k rep">reported</span><span class="v">"What is that constant monotonous droning noise still coming in the background?"</span></div>
+        <div class="row"><span class="k cause">root cause</span><span class="v">A tremolo oscillator was wired additively into the tension gain at ±0.5 amplitude — two high tones played at half volume permanently, regardless of tension.</span></div>
+        <div class="row"><span class="k fix">fix</span><span class="v">Scaled the modulator 166× down and lowered the tension level; the bed only responds to real tension now.</span></div>
+      </div>
+      <div class="incident">
+        <h3>The entity couldn't see or reach the player</h3>
+        <div class="row"><span class="k rep">reported</span><span class="v">"It has trouble seeing me or passing through the door even though I'm standing right next to it."</span></div>
+        <div class="row"><span class="k cause">root cause</span><span class="v">The line-of-sight ray treated every prop as a wall — and if the entity ever stopped inside a prop collider, it was permanently blind. Paths could also grind against a doorway forever.</span></div>
+        <div class="row"><span class="k fix">fix</span><span class="v">Only walls and doors block sight, a proximity sense triggers under 2.3 m, and a stuck-escape watchdog re-paths after 1.2 s without displacement.</span></div>
+      </div>
+      <div class="incident">
+        <h3>Ghosts killed you at spawn</h3>
+        <div class="row"><span class="k rep">reported</span><span class="v">Runs ended within seconds of starting, repeatedly.</span></div>
+        <div class="row"><span class="k cause">root cause</span><span class="v">A previous run's recorded route starts at the spawn point. The replaying ghost inherited full detection and attacked immediately.</span></div>
+        <div class="row"><span class="k fix">fix</span><span class="v">Ghost replay is non-lethal and detection-disabled until it materialises, plus a spawn grace period.</span></div>
+      </div>
+      <div class="incident">
+        <h3>The mouse vanished on death</h3>
+        <div class="row"><span class="k rep">reported</span><span class="v">"The mouse pointer does not show up when you die."</span></div>
+        <div class="row"><span class="k cause">root cause</span><span class="v">Pointer lock was never released, so the death screen had no usable cursor.</span></div>
+        <div class="row"><span class="k fix">fix</span><span class="v">Release pointer lock the moment the death state begins.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Architecture, cross-referenced</h2></div>
+
+    <div class="arch-intro">
+      <p><b>What the model is, per its public model card.</b> DeepSeek-V4.1-Flash is a multimodal mixture-of-experts model — 552B backbone parameters, up to a 1M-token context — built around a <b>Causal Encoder-Decoder</b> that projects the decoder's KV cache from the encoder's final hidden states. That design activates only <b>8B parameters per token during prefill and 16B during decode</b>, which is precisely the profile of agentic coding: enormously input-heavy, comparatively output-light. Its <b>Compressed Sparse Attention 2</b> and <b>FP4 KV caching</b> shrink the global KV footprint to <b>890 bytes per token</b> — roughly ¼ of its predecessor and 1/437th of the first generation. Add <b>Engram</b> conditional memory, <b>DSpark</b> speculative decoding, and a controllable <b>reasoning effort from 1–100</b>, and you have a model explicitly tuned for long-horizon work in a real environment.</p>
+      <div class="src-note">Source: DeepSeek-V4.1-Flash model card &amp; technical report [1][2]</div>
+    </div>
+
+    <div class="chart">
+      <h3>Global KV cache footprint per token</h3>
+      <div class="sub">Lower is cheaper for long sessions. Bars are log-scaled; values are the documented figures.</div>
+      <div class="bars">
+        <div class="bar-row"><span class="lbl">DeepSeek-V1</span><div class="bar-track"><div class="bar-fill v1"></div><span class="val">~389,000 B</span></div></div>
+        <div class="bar-row"><span class="lbl">V4-Flash</span><div class="bar-track"><div class="bar-fill v4"></div><span class="val">~3,560 B</span></div></div>
+        <div class="bar-row"><span class="lbl">V4.1-Flash</span><div class="bar-track"><div class="bar-fill v41"></div><span class="val">890 B</span></div></div>
+      </div>
+      <div class="axis">log scale · ×437 reduction vs V1 · ×4 vs V4-Flash</div>
+    </div>
+
+    <div class="map">
+      <div class="mapping">
+        <div class="arch">
+          <h3>Causal Encoder-Decoder · 8B prefill / 16B decode</h3>
+          <p>The decoder's KV is projected from the encoder's final hidden states instead of every decoder layer's own, decoupling input cost from output cost.</p>
+          <span class="doc">documented architecture</span>
+        </div>
+        <div class="impact">
+          <p>Agentic coding is exactly the workload this optimises: thousands of lines of context and tool output going in, comparatively little coming out. Cheap prefill meant verification could run on <b>every change</b> instead of at milestones.</p>
+          <div class="ev"><b>evidence in this build</b>Roughly forty browser-driven checks — forcing game states, teleporting the player, faking microphone input, inspecting render targets — interleaved with code edits, all inside one session.</div>
+        </div>
+      </div>
+
+      <div class="mapping">
+        <div class="arch">
+          <h3>1M-token context · CSA2 · FP4 KV at 890 B/token</h3>
+          <p>Compressed sparse attention shares KV and Top-K indices across layers, with a hierarchical indexer bounding deeper cost independently of context length.</p>
+          <span class="doc">documented architecture</span>
+        </div>
+        <div class="impact">
+          <p>Whole-project coherence. Cross-file invariants survive dozens of edit rounds because the model retains the actual code, not a summary of it — naming conventions, the 5×5 grid constants, the entity's rule set, the palette.</p>
+          <div class="ev"><b>evidence in this build</b>Fixes made deep into the session referenced exact symbols — <code>_moveAlongPath</code>, <code>ps1Uniforms</code>, <code>map_fragment</code> — without reopening files, across twelve modules and four thousand-plus lines.</div>
+        </div>
+      </div>
+
+      <div class="mapping">
+        <div class="arch">
+          <h3>384 routed experts per layer · 6 active per token · 45T-token multimodal pretraining</h3>
+          <p>A sparse mixture of experts routes each token through a small specialised subset of a very wide parameter space.</p>
+          <span class="doc">documented architecture</span>
+        </div>
+        <div class="impact">
+          <p>Game development is relentless domain-hopping: GLSL shaders, Web Audio DSP graphs, A* pathfinding, procedural texture mathematics, CSS layout, HTTP tooling, git deployment. Sparse routing is well-suited to a task that switches disciplines every few minutes.</p>
+          <div class="ev"><b>evidence in this build</b>One session produced a working shader-injection layer, a synthesis engine, a graph-search AI, a canvas texture library, a responsive HUD, and a deployment — with no fine-tuning and no external assets.</div>
+        </div>
+      </div>
+
+      <div class="mapping">
+        <div class="arch">
+          <h3>Agentic post-training · Terminal-Bench 2.1: 90.6 · DeepSWE v1.1: 74.2</h3>
+          <p>Post-training synthesises agent tasks and environments at scale; the instruct model's strongest published results are in exactly this category.</p>
+          <span class="doc">documented architecture</span>
+        </div>
+        <div class="impact">
+          <p>The environment is treated as a testable system rather than a chat window. The model did not just author files — it operated the machine and verified outcomes against observable state.</p>
+          <div class="ev"><b>evidence in this build</b>It launched its own dev server; opened and drove a browser tab; evaluated JavaScript inside the running game; inspected framebuffers; read shader compile diagnostics; ran the QA battery; deployed via CLI; then polled the public URL until the build was live.</div>
+        </div>
+      </div>
+
+      <div class="mapping">
+        <div class="arch">
+          <h3>Native multimodality · DeepSeek-ViT</h3>
+          <p>Images and text are processed jointly from the start of pretraining through a vision encoder and projector.</p>
+          <span class="doc">documented architecture</span>
+        </div>
+        <div class="impact">
+          <p>A game is a visual artefact, and visual self-inspection closes the loop that text-only agents cannot: seeing the actual output, then judging lighting, readability and composition the way a player would.</p>
+          <div class="ev"><b>evidence in this build</b>Screenshots drove real decisions — diagnosing a near-black render, tuning lamp falloff, confirming the entity's silhouette, and triggering a full typographic overhaul after seeing the HUD at gameplay scale.</div>
+        </div>
+      </div>
+
+      <div class="mapping">
+        <div class="arch">
+          <h3>Controllable reasoning effort · 1–100</h3>
+          <p>Inference cost can be traded against accuracy continuously per task.</p>
+          <span class="doc">documented architecture</span>
+        </div>
+        <div class="impact">
+          <p>The hard problems in this build were never syntactic. They were semantic: why a fragment shader silently fails, why a modulator creates a permanent tone, why an input flag disappears between two lines. Reasoning spent on system semantics is what found those, not pattern-matching.</p>
+          <div class="ev"><b>evidence in this build</b>Each incident in section 04 was resolved by tracing a symptom to a mechanism — read the diagnostic, follow the signal path, find the invariant that was violated.</div>
+        </div>
+      </div>
+
+      <div class="mapping">
+        <div class="arch">
+          <h3>DSpark speculative decoding · long-output throughput</h3>
+          <p>Semi-autoregressive drafting with confidence-scheduled verification accelerates generation, especially for long, structured output.</p>
+          <span class="doc">documented architecture</span>
+        </div>
+        <div class="impact">
+          <p>Large files land complete and coherent in one pass, which keeps the iteration cadence limited by <b>testing speed</b> rather than writing speed. A 1,000-line module arriving in one shot is a different development rhythm than assembling it piecewise.</p>
+          <div class="ev"><b>evidence in this build</b>The largest modules — the 1,034-line procedural world generator and 899-line game loop — were authored as whole systems, and the six-commit history shows feature bundles rather than hundreds of incremental patches.</div>
+        </div>
+      </div>
+
+      <div class="mapping">
+        <div class="arch">
+          <h3>Engram conditional memory · SWA bounded replay</h3>
+          <p>Token-lookup sparsity for long-horizon memory, plus efficient reconstruction of sliding-window attention state without persisting it all.</p>
+          <span class="doc">documented architecture</span>
+        </div>
+        <div class="impact">
+          <p>Project-specific conventions persisted: the entity's design rules, the HUD's colour language, the game's tone. Late additions — stimpacks, core-panic escalation, proximity sense — slotted into the established system instead of fighting it.</p>
+          <div class="ev"><b>evidence in this build</b>Features added near the end inherited the exact conventions of the beginning: same palette, same update pattern, same diegetic framing, same testing ritual.</div>
+        </div>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Published benchmark</th><th>Context</th><th>DeepSeek-V4.1-Flash</th></tr></thead>
+      <tbody>
+        <tr><td>Terminal-Bench 2.1</td><td>Real terminal agent tasks</td><td class="hi">90.6</td></tr>
+        <tr><td>DeepSWE v1.1</td><td>Software-engineering issue resolution</td><td class="hi">74.2</td></tr>
+        <tr><td>HLE with tools</td><td>Reasoning with tool use</td><td class="hi">63.9</td></tr>
+        <tr><td>AutomationBench</td><td>End-to-end automation</td><td class="hi">54.8</td></tr>
+        <tr><td>Agent's Last Exam</td><td>Long-horizon agentic reasoning</td><td class="hi">31.8</td></tr>
+        <tr><td>Codeforces</td><td>Competitive programming rating</td><td class="hi">3471</td></tr>
+      </tbody>
+    </table>
+    <div class="src-note" style="margin-top:1rem">Scores as published in the DeepSeek-V4.1-Flash model card [1]. The work on this page is not a benchmark; it is one long, messy, real task.</div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><h2>What the architecture didn't do</h2></div>
+    <div class="split">
+      <div>
+        <h3>The model could not:</h3>
+        <ul>
+          <li><b>Hear the mix.</b> The droning bug was found by a human ear. The agent could inspect the audio graph but not experience the result.</li>
+          <li><b>Feel difficulty.</b> Two clean escapes without dying were the human's observation, and that judgement drove the entire AI-pressure redesign.</li>
+          <li><b>Decide what the game is called.</b> The human renamed it to THE HUM and turned the title into the entity's name and the lore.</li>
+          <li><b>Judge taste.</b> "Beyond imagination" was an instruction the model interpreted — but the standard it was held to was human.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>What that means in practice</h3>
+        <ul>
+          <li><b>The bottleneck moved.</b> From writing code to describing intent precisely. The most valuable human input was a one-line symptom or a taste decision, not an implementation.</li>
+          <li><b>Direction stayed human.</b> Every root-cause fix and feature was initiated by an observation only a player could make.</li>
+          <li><b>Architecture compounds.</b> Cheap long-context inference doesn't just save money — it changes the method. Continuous verification, whole-project edits and same-session features are only rational when context and iteration are cheap.</li>
+        </ul>
+        <div class="callout"><p>The honest summary: the architecture made a long, coupled, real project tractable in a single session. The human made it <b>good</b>.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Method &amp; sources</h2></div>
+    <p class="narrow" style="margin-bottom:1.6rem">Architecture statements on this page are taken from DeepSeek's public model card and technical report. Development claims are reconstructed from the actual build artefacts: the repository, its commit history, captured screenshots, and the recorded debugging log. Where a connection between the architecture and the experience of building is interpretive, it is presented as an interpretation — not as a measured result.</p>
+    <ul class="sources">
+      <li data-n="1">DeepSeek-V4.1-Flash model card — Hugging Face: <a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash">huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash</a></li>
+      <li data-n="2">DeepSeek-V4.1 technical report (PDF, linked from the model card)</li>
+      <li data-n="3">OpenRouter model page: <a href="https://openrouter.ai/deepseek/deepseek-v4.1-flash">openrouter.ai/deepseek/deepseek-v4.1-flash</a></li>
+      <li data-n="4">THE HUM source &amp; history: <a href="https://github.com/Pseud0Coder/The_Hum">github.com/Pseud0Coder/The_Hum</a></li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <h2>It's live. Wear headphones.</h2>
+    <p class="narrow">THE HUM runs in the browser with no install. It will ask for your microphone — and it will use it against you. There is a "run deaf" option if you'd rather keep your room to yourself.</p>
+    <div class="cta">
+      <a href="https://pseud0coder.github.io/The_Hum/">Play THE HUM →</a>
+      <a href="https://github.com/Pseud0Coder/The_Hum">Source →</a>
+      <a href="https://pseud0coder.github.io/">Pseud0Coder →</a>
+    </div>
+    <div class="fine">Built inside bb with DeepSeek-V4.1-Flash · case study compiled from the actual development session</div>
+  </div>
+</footer>
+
+<script>
+  const progress = document.getElementById('progress');
+  addEventListener('scroll', () => {
+    const h = document.documentElement;
+    const p = h.scrollTop / (h.scrollHeight - h.clientHeight);
+    progress.style.width = (p * 100) + '%';
+  }, { passive: true });
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); }
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.card, .incident, .mapping, .phase, .chart, .callout, .stat').forEach(el => {
+    el.classList.add('reveal');
+    io.observe(el);
+  });
+</script>
+</body>
+</html>

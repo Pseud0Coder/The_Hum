@@ -12,6 +12,8 @@ breathing — the microphone in your machine is part of the game.
 
 No install, no download. Chrome / Brave / Edge. Headphones strongly recommended.
 
+**Making of:** [how this was built, and what the model architecture contributed](making-of/) — a case study.
+
 ## The Hum
 
 The crew of the Vox-9 research station studied sound that behaved like matter. It
